@@ -1,0 +1,13 @@
+DyGPrompt/processed/*
+DyGPrompt/downstream_data/*
+# 忽略所有 .pth 模型文件
+*.pth
+
+# 忽略所有 .kgl 文件
+*.pkl
+
+# 忽略所有 .log 日志文件
+*.log
+
+# 忽略 __pycache__ 文件夹及其内容
+__pycache__/
