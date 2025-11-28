@@ -7,11 +7,13 @@ import torch
 import numpy as np
 import pickle
 from pathlib import Path
+from tqdm import tqdm
 
 from evaluation.evaluation import eval_edge_prediction
 from model.tgn import TGN
 from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_data, compute_time_statistics
+from utils.log_utils import setup_logger, get_pbar, log_epoch_stats, log_test_stats, save_results_to_txt
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -93,19 +95,7 @@ get_checkpoint_path = lambda \
     epoch: f'./saved_checkpoints/{args.prefix}-{args.data}-{epoch}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-Path("log/").mkdir(parents=True, exist_ok=True)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}")
 logger.info(args)
 
 ### Extract data for training, validation and testing
@@ -191,7 +181,10 @@ for i in range(args.n_runs):
     m_loss = []
 
     logger.info('start {} epoch'.format(epoch))
-    for k in range(0, num_batch, args.backprop_every):
+    pbar = get_pbar(range(0, num_batch, args.backprop_every), 
+                desc=f"Epoch {epoch+1}/{NUM_EPOCH}", 
+                total=len(range(0, num_batch, args.backprop_every)))
+    for k in pbar:
       loss = 0
       optimizer.zero_grad()
 
@@ -223,7 +216,6 @@ for i in range(args.n_runs):
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
       loss /= args.backprop_every
-
       loss.backward()
       optimizer.step()
       m_loss.append(loss.item())
@@ -232,6 +224,10 @@ for i in range(args.n_runs):
       # the start of time
       if USE_MEMORY:
         tgn.memory.detach_memory()
+
+      pbar.set_postfix({'loss': f'{loss.item():.4f}'})
+
+    pbar.close()
 
     epoch_time = time.time() - start_epoch
     epoch_times.append(epoch_time)
@@ -282,12 +278,7 @@ for i in range(args.n_runs):
     total_epoch_time = time.time() - start_epoch
     total_epoch_times.append(total_epoch_time)
 
-    logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
-    logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
-    logger.info(
-      'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
-    logger.info(
-      'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
+    log_epoch_stats(logger, epoch, total_epoch_time, np.mean(m_loss), val_auc, val_ap, nn_val_auc, nn_val_ap)
 
     # Early stopping
     if early_stopper.early_stop_check(val_ap):
@@ -323,10 +314,8 @@ for i in range(args.n_runs):
                                                                           data=new_node_test_data,
                                                                           n_neighbors=NUM_NEIGHBORS)
 
-  logger.info(
-    'Test statistics: Old nodes -- auc: {}, ap: {}'.format(test_auc, test_ap))
-  logger.info(
-    'Test statistics: New nodes -- auc: {}, ap: {}'.format(nn_test_auc, nn_test_ap))
+  log_test_stats(logger, test_auc, test_ap, nn_test_auc, nn_test_ap)
+  
   # Save results for this run
   pickle.dump({
     "val_aps": val_aps,
@@ -337,6 +326,10 @@ for i in range(args.n_runs):
     "train_losses": train_losses,
     "total_epoch_times": total_epoch_times
   }, open(results_path, "wb"))
+
+  # Save results to txt
+  final_results = np.array([test_auc, test_ap, nn_test_auc, nn_test_ap])
+  save_results_to_txt("results", f"{args.prefix}_{args.data}_test_results.txt", final_results)
 
   logger.info('Saving TGN model')
   if USE_MEMORY:

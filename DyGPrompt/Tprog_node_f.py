@@ -15,6 +15,7 @@ from model.tgn_ import TGN
 from utils.utils import EarlyStopMonitor, get_neighbor_finder, MLP
 from utils.data_processing import compute_time_statistics, get_data_node_classification,get_d_data
 from evaluation.evaluation import eval_node_classification
+from utils.log_utils import setup_logger, get_pbar, save_results_to_txt
 
 random.seed(0)
 np.random.seed(0)
@@ -107,18 +108,7 @@ get_checkpoint_path = lambda \
   node-classification.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_Tprog_node_f")
 logger.info(args)
 
 full_data, node_features, edge_features, train_data, val_data, test_data = \
@@ -233,7 +223,8 @@ for i in range(1):
   train_losses = []
 
   early_stopper = EarlyStopMonitor(max_round=args.patience)
-  for epoch in range(args.n_epoch):
+  epoch_pbar = get_pbar(range(args.n_epoch), desc="Epochs")
+  for epoch in epoch_pbar:
     start_epoch = time.time()
     
     # Initialize memory of the model at each epoch
@@ -291,7 +282,8 @@ for i in range(1):
       "new_nodes_val_aps": [],
     }, open(results_path, "wb"))
 
-    logger.info(f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
+    # logger.info(f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
+    epoch_pbar.set_postfix({'loss': f'{loss / num_batch:.4f}', 'val_auc': f'{val_auc:.4f}'})
   
   if args.use_validation:
     if early_stopper.early_stop_check(val_auc):
@@ -313,9 +305,9 @@ for i in range(1):
     # If we are not using a validation set, the test performance is just the performance computed
     # in the last epoch
     test_auc = val_aucs[-1]
-  folder_path = "./result_super/node/%s"%(DATA) 
+  folder_path = f"./result_super/node/{DATA}"
   NAME = args.name 
 # file_path = f"{folder_path}/{NAME}_f1.txt"  
-  np.savetxt(f"{folder_path}/{NAME}_auc.txt", test_auc, fmt='%s')
+  save_results_to_txt(folder_path, f"{NAME}_auc.txt", [test_auc])
   
 

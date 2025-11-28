@@ -12,6 +12,8 @@ from tqdm import tqdm
 import random
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import roc_auc_score
+from log_utils import setup_logger, get_pbar, save_results_to_txt
+
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
 parser.add_argument('-d', '--data', type=str, help='data sources to use, try wikipedia or reddit', default='wikipedia')
 parser.add_argument('--bs', type=int, default=200, help='batch_size')
@@ -29,6 +31,11 @@ try:
 except:
     parser.print_help()
     sys.exit(0)
+
+# Set up logger
+logger = setup_logger(f'roland_downstream_node_super_{args.data}')
+logger.info(args)
+
 class MergeLayer(torch.nn.Module):
     def __init__(self, dim1, dim2, dim3, dim4):
         super().__init__()
@@ -289,19 +296,23 @@ train_snapshots = choose_data(selected_train_ts)
 val_snapshots = choose_data(selected_val_ts)
 test_snapshots = choose_data(selected_test_ts)
 nn_test_snapshots = choose_data(selected_nn_test_ts)
-for i in range(len(train_snapshots)):
+train_pbar = get_pbar(range(len(train_snapshots)), desc="Training Snapshots")
+for i in train_pbar:
 
     train_snapshot = train_snapshots[i]
     # print(train_snapshot)
     val_snapshot = val_snapshots[i]
-    _ = train(train_snapshot, model,node_features, optimizer,batch_size=8192)
+    loss = train(train_snapshot, model,node_features, optimizer,batch_size=8192)
+    train_pbar.set_postfix({'loss': loss})
     _ = valid(val_snapshot, model,node_features, optimizer,batch_size=8192)
 tmp_ap = []
 tmp_auc = []
 tmp_nn_ap = []
 tmp_nn_auc = []
-for i in range(len(test_snapshots)):
-    print(i)
+
+test_pbar = get_pbar(range(len(test_snapshots)), desc="Testing Snapshots")
+for i in test_pbar:
+    # print(i)
     test_snapshot = test_snapshots[i]
     nn_test_snapshot = nn_test_snapshots[i]
     test_auc = valid(test_snapshot, model,node_features, optimizer,batch_size=8192)
@@ -317,9 +328,9 @@ test_aucs.append(np.mean(tmp_auc))
 FUNCTION = args.fn
 NAME = args.name
 
-folder_path = "./result/super/%s"%(FUNCTION)  
+folder_path = f"./result/super/{FUNCTION}"
 # np.savetxt(f"{folder_path}/{NAME}_aps.txt", [sum(test_aps)/100], fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_node_aucs.txt", test_aucs, fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_node_aucs.txt", test_aucs)
 # np.savetxt(f"{folder_path}/{NAME}_nn_aps.txt", [sum(test_nn_aps)/100], fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_nn_aucs.txt", [sum(test_nn_aucs)/100], fmt='%s')
 

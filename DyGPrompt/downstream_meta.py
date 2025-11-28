@@ -15,6 +15,7 @@ from model.prompt import node_prompt_layer
 from utils.utils import EarlyStopMonitor, get_neighbor_finder, MLP
 from utils.data_processing import compute_time_statistics, get_data_node_classification
 from evaluation.evaluation import eval_node_classification_GP
+from utils.log_utils import setup_logger, get_pbar, log_epoch_stats, save_results_to_txt
 
 random.seed(0)
 np.random.seed(0)
@@ -119,18 +120,7 @@ get_checkpoint_path = lambda \
   node-classification.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_node_class")
 logger.info(args)
 
 # full_data, node_features, edge_features, train_data, val_data, test_data = \
@@ -196,9 +186,10 @@ total_acc = []
 total_f1 = []
 device = torch.device('cuda:{}'.format(GPU))
 model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
-from tqdm import tqdm
 runs = args.n_runs
-for task in tqdm(range(1)):
+
+task_pbar = get_pbar(range(100), desc="Tasks")
+for task in task_pbar:
   #
 
   time_stamp = task_time_set[task]
@@ -285,11 +276,11 @@ for task in tqdm(range(1)):
     prompt = node_prompt_layer(edge_features.shape[1])
 
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
-    print(model_path)
+    # print(model_path)
     tgn.load_state_dict(torch.load(model_path),strict=False)
     tgn.eval()
-    logger.info('TGN models loaded')
-    logger.info('Start training node classification task')
+    # logger.info('TGN models loaded')
+    # logger.info('Start training node classification task')
 
     decoder = MLP(node_features.shape[1], drop=DROP_OUT)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
@@ -307,7 +298,8 @@ for task in tqdm(range(1)):
     train_losses = []
 
     # early_stopper = EarlyStopMonitor(max_round=args.patience)
-    for epoch in range(args.n_epoch):
+    epoch_pbar = get_pbar(range(args.n_epoch), desc=f"Task {task+1} Epochs", leave=False)
+    for epoch in epoch_pbar:
       # start_epoch = time.time()
       
       # Initialize memory of the model at each epoch
@@ -362,6 +354,8 @@ for task in tqdm(range(1)):
       val_auc = eval_node_classification_GP(tgn, decoder, val_data, full_data.edge_idxs,VAL_SHOT_NUM,prompt,
                                         n_neighbors=NUM_NEIGHBORS)
       val_aucs.append(val_auc)
+      
+      epoch_pbar.set_postfix({'loss': f'{loss:.4f}', 'val_auc': f'{val_auc:.4f}'})
 
       pickle.dump({
         "val_aps": val_aucs,
@@ -392,15 +386,21 @@ for task in tqdm(range(1)):
   total_auc.append(sum(run_auc)/runs)
   total_acc.append(sum(run_acc)/runs)
   total_f1.append(sum(run_f1)/runs)
-  logger.info(f'task auc: {sum(run_auc)/runs}')
+  # logger.info(f'task auc: {sum(run_auc)/runs}')
+  task_pbar.set_postfix({'task_auc': f'{sum(run_auc)/runs:.4f}'})
+
 # folder_path = "./meta_result/%s"%(DATA)  
 folder_path = "./"
 # file_path = f"{folder_path}/{NAME}_f1.txt"  
 # np.savetxt(f"{folder_path}/{NAME}_auc.txt", total_auc, fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_f1.txt", total_f1, fmt='%s')
 
-np.savetxt(f"{folder_path}/{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100], fmt='%s')
-# np.savetxt(f"{folder_path}/{NAME}_total_mean_ff1.txt",[sum(total_f1)/100] ,fmt='%s')
-# np.savetxt(f"{folder_path}/{NAME}_total_mean_acc_f.txt",[sum(total_acc)/100] ,fmt='%s')
+final_results = np.array([
+    sum(total_auc)/100,
+    sum(total_f1)/100,
+    sum(total_acc)/100
+])
+save_results_to_txt("results", f"{args.prefix}_{args.data}_node_class_results.txt", final_results)
+logger.info(f"Final Results - AUC: {final_results[0]:.4f}, F1: {final_results[1]:.4f}, ACC: {final_results[2]:.4f}")
 
   

@@ -12,6 +12,8 @@ from tqdm import tqdm
 import random
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import roc_auc_score
+from log_utils import setup_logger, get_pbar, save_results_to_txt
+
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
 parser.add_argument('-d', '--data', type=str, help='data sources to use, try wikipedia or reddit', default='wikipedia')
 parser.add_argument('--bs', type=int, default=200, help='batch_size')
@@ -29,6 +31,11 @@ try:
 except:
     parser.print_help()
     sys.exit(0)
+
+# Set up logger
+logger = setup_logger(f'roland_downstream_node_fewshot_{args.data}')
+logger.info(args)
+
 class MergeLayer(torch.nn.Module):
     def __init__(self, dim1, dim2, dim3, dim4):
         super().__init__()
@@ -270,8 +277,14 @@ test_aps = []
 test_aucs = []
 test_nn_aps = []
 test_nn_aucs = []
-for task in range(100):
-    print("task %d"%(task))
+test_aps = []
+test_aucs = []
+test_nn_aps = []
+test_nn_aucs = []
+
+task_pbar = get_pbar(range(100), desc="Tasks")
+for task in task_pbar:
+    # print("task %d"%(task))
     num_snapshots = min(len(train_ts_l), 5)
     selected_train_indices = np.linspace(task_start_indices+1, len(train_ts_l)-1, num=num_snapshots, dtype=int, endpoint=True)
     selected_val_indices = np.linspace(0, len(val_ts_l)-1, num=num_snapshots, dtype=int, endpoint=True)
@@ -312,12 +325,14 @@ for task in range(100):
     test_aucs.append(np.mean(tmp_auc))
     # test_nn_aps.append(np.mean(tmp_nn_ap))
     # test_nn_aucs.append(np.mean(tmp_nn_auc))
+    task_pbar.set_postfix({'auc': np.mean(tmp_auc)})
+
 FUNCTION = args.fn
 NAME = args.name
 
-folder_path = "./result/%s"%(FUNCTION)  
+folder_path = f"./result/{FUNCTION}"
 # np.savetxt(f"{folder_path}/{NAME}_aps.txt", [sum(test_aps)/100], fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_node_aucs.txt", [sum(test_aucs)/100], fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_node_aucs.txt", [sum(test_aucs)/100])
 # np.savetxt(f"{folder_path}/{NAME}_nn_aps.txt", [sum(test_nn_aps)/100], fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_nn_aucs.txt", [sum(test_nn_aucs)/100], fmt='%s')
 

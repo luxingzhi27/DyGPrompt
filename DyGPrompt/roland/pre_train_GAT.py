@@ -8,7 +8,7 @@ import sys
 from dataloader import SnapshotNodeDataset
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
-from tqdm import tqdm
+from log_utils import setup_logger, get_pbar
 # 
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
 parser.add_argument('-d', '--data', type=str, help='data sources to use, try wikipedia or reddit', default='wikipedia')
@@ -28,6 +28,11 @@ except:
 
 DATA = args.data
 lr = args.lr
+
+# Set up logger
+logger = setup_logger(f'roland_pretrain_GAT_{DATA}')
+logger.info(args)
+
 # 
 def compareloss(origi,positive,negative,temperature):
     #input:(graphnum,max_n_num,3 target,positive sample , negative sample)
@@ -177,7 +182,8 @@ def train(snapshot, model, node_features, optimizer,x_prev1 = x_prev1,x_prev2=x_
 # snapshot_0 = cumulative_snapshots[2]
 # train_loss = train(snapshot_0, model,node_features, optimizer,batch_size=8192)
 model.train()
-for epoch in tqdm(range(50)):
+epoch_pbar = get_pbar(range(50), desc="Epochs")
+for epoch in epoch_pbar:
     loss = []
     x_prev1 = torch.zeros_like(node_features.weight).to(device)
     x_prev2 = torch.zeros_like(node_features.weight).to(device)
@@ -191,6 +197,9 @@ for epoch in tqdm(range(50)):
             
         train_loss = train(snapshot, model,node_features, optimizer,batch_size=8192)
         loss.append(train_loss)
-    print(np.mean(train_loss))
+    
+    mean_loss = np.mean(loss)
+    # logger.info(f"Epoch {epoch}: Mean Loss = {mean_loss}")
+    epoch_pbar.set_postfix({'loss': f'{mean_loss:.4f}'})
 
 torch.save(model.state_dict(), 'roland_GAT.pth')

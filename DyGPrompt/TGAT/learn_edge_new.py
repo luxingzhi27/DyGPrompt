@@ -18,6 +18,7 @@ from sklearn.metrics import roc_auc_score
 from module import TGAN
 from graph import NeighborFinder
 from utils import EarlyStopMonitor, RandEdgeSampler
+from log_utils import setup_logger, get_pbar, log_epoch_stats, save_results_to_txt
 
 ### Argument and global variables
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
@@ -71,18 +72,7 @@ MODEL_SAVE_PATH = f'./saved_models/{args.prefix}-{args.agg_method}-{args.attn_mo
 get_checkpoint_path = lambda epoch: f'./saved_checkpoints/{args.prefix}-{args.agg_method}-{args.attn_mode}-{args.data}-{epoch}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_learn_edge")
 logger.info(args)
 
 
@@ -227,14 +217,17 @@ idx_list = np.arange(num_instance)
 np.random.shuffle(idx_list) 
 
 early_stopper = EarlyStopMonitor()
-for epoch in range(NUM_EPOCH):
+epoch_pbar = get_pbar(range(NUM_EPOCH), desc="Epochs")
+for epoch in epoch_pbar:
     # Training 
     # training use only training graph
     tgan.ngh_finder = train_ngh_finder
     acc, ap, f1, auc, m_loss = [], [], [], [], []
     np.random.shuffle(idx_list)
-    logger.info('start {} epoch'.format(epoch))
-    for k in range(num_batch):
+    # logger.info('start {} epoch'.format(epoch))
+    
+    batch_pbar = get_pbar(range(num_batch), desc=f"Epoch {epoch+1}/{NUM_EPOCH}", leave=False)
+    for k in batch_pbar:
         # percent = 100 * k / num_batch
         # if k % int(0.2 * num_batch) == 0:
         #     logger.info('progress: {0:10.4f}'.format(percent))
@@ -271,6 +264,8 @@ for epoch in range(NUM_EPOCH):
             # f1.append(f1_score(true_label, pred_label))
             m_loss.append(loss.item())
             auc.append(roc_auc_score(true_label, pred_score))
+        
+        batch_pbar.set_postfix({'loss': f'{loss.item():.4f}'})
 
     # validation phase use all information
     tgan.ngh_finder = full_ngh_finder
@@ -280,11 +275,12 @@ for epoch in range(NUM_EPOCH):
     nn_val_acc, nn_val_ap, nn_val_f1, nn_val_auc = eval_one_epoch('val for new nodes', tgan, val_rand_sampler, nn_val_src_l, 
     nn_val_dst_l, nn_val_ts_l, nn_val_label_l)
         
-    logger.info('epoch: {}:'.format(epoch))
-    logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
-    logger.info('train acc: {}, val acc: {}, new node val acc: {}'.format(np.mean(acc), val_acc, nn_val_acc))
-    logger.info('train auc: {}, val auc: {}, new node val auc: {}'.format(np.mean(auc), val_auc, nn_val_auc))
-    logger.info('train ap: {}, val ap: {}, new node val ap: {}'.format(np.mean(ap), val_ap, nn_val_ap))
+    log_epoch_stats(logger, epoch, loss=np.mean(m_loss), train_acc=np.mean(acc), val_acc=val_acc, val_auc=val_auc, val_ap=val_ap)
+    # logger.info('epoch: {}:'.format(epoch))
+    # logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
+    # logger.info('train acc: {}, val acc: {}, new node val acc: {}'.format(np.mean(acc), val_acc, nn_val_acc))
+    # logger.info('train auc: {}, val auc: {}, new node val auc: {}'.format(np.mean(auc), val_auc, nn_val_auc))
+    # logger.info('train ap: {}, val ap: {}, new node val ap: {}'.format(np.mean(ap), val_ap, nn_val_ap))
     # logger.info('train f1: {}, val f1: {}, new node val f1: {}'.format(np.mean(f1), val_f1, nn_val_f1))
 
     if early_stopper.early_stop_check(val_ap):

@@ -19,6 +19,7 @@ from module import TGAN
 from graph import NeighborFinder
 from utils import EarlyStopMonitor, RandEdgeSampler
 from prompt import Tprog_prompt_layer
+from log_utils import setup_logger, get_pbar, save_results_to_txt
 ### Argument and global variables
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
 parser.add_argument('-d', '--data', type=str, help='data sources to use, try wikipedia or reddit', default='wikipedia')
@@ -70,18 +71,7 @@ MODEL_SAVE_PATH = f'./saved_models/{args.prefix}-{args.agg_method}-{args.attn_mo
 get_checkpoint_path = lambda epoch: f'./saved_link/{args.prefix}-{args.agg_method}-{args.attn_mode}-{args.data}-{epoch}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f'log/{time.time()}.log')
 logger.info(args)
 
 
@@ -292,14 +282,16 @@ def Tprog(src_embed,src_l_cut, ts_l_cut,prompt,model,ngh_finder = full_ngh_finde
     return embedding
 tgan.load_state_dict(torch.load(model_path),strict=False)
 
-for task in range(100):
-    logger.info('start {} task'.format(task))
+task_pbar = get_pbar(range(100), desc="Tasks")
+for task in task_pbar:
+    # logger.info('start {} task'.format(task))
     prompt = Tprog_prompt_layer(n_feat.shape[0],n_feat.shape[1]) 
     prompt_optimizer = torch.optim.Adam(prompt.parameters(), lr=0.01)
     prompt = prompt.to(device)
 
 
-    for epoch in range(50):
+    epoch_pbar = get_pbar(range(50), desc=f"Task {task+1} Epochs", leave=False)
+    for epoch in epoch_pbar:
         # Training 
         # training use only training graph
         tgan.ngh_finder = train_ngh_finder
@@ -371,6 +363,7 @@ for task in range(100):
         # nn_val_acc, nn_val_ap, nn_val_f1, nn_val_auc = eval_one_epoch_0('val for new nodes', tgan, nn_val_rand_sampler, nn_val_src_l, 
         # nn_val_dst_l, nn_val_ts_l, nn_val_label_l)
         
+        epoch_pbar.set_postfix({'loss': f'{np.mean(m_loss):.4f}', 'val_auc': f'{val_auc:.4f}'})
             
         # logger.info('epoch: {}:'.format(epoch))
         # logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
@@ -386,9 +379,11 @@ for task in range(100):
     nn_test_dst_l, nn_test_ts_l, nn_test_label_l,prompt)
     test_aps.append(test_ap)
     test_aucs.append(test_auc)
-    print(test_auc)
+    # print(test_auc)
     test_nn_aps.append(nn_test_ap)
     test_nn_aucs.append(nn_test_auc)
+    
+    task_pbar.set_postfix({'test_auc': f'{test_auc:.4f}', 'nn_test_auc': f'{nn_test_auc:.4f}'})
         # if early_stopper.early_stop_check(val_ap):
         #     logger.info('No improvment over {} epochs, stop training'.format(early_stopper.max_round))
         #     logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
@@ -406,7 +401,7 @@ for task in range(100):
 # testing phase use all information
 NAME = args.name
 FUNCTION = args.fn
-folder_path = "./down_stream_result/%s/link/unsuper"%(FUNCTION)  
+folder_path = f"./down_stream_result/{FUNCTION}/link/unsuper"
 tgan.ngh_finder = full_ngh_finder
 
 
@@ -415,15 +410,15 @@ tgan.ngh_finder = full_ngh_finder
 
 
 
-np.savetxt(f"{folder_path}/{NAME}_aps.txt", [sum(test_aps)/100], fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_aps.txt", [sum(test_aps)/100])
 
 
-np.savetxt(f"{folder_path}/{NAME}_aucs.txt", [sum(test_aucs)/100], fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_aucs.txt", [sum(test_aucs)/100])
 
-np.savetxt(f"{folder_path}/{NAME}_nn_aps.txt", [sum(test_nn_aps)/100], fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_nn_aps.txt", [sum(test_nn_aps)/100])
 
 
-np.savetxt(f"{folder_path}/{NAME}_nn_aucs.txt", [sum(test_nn_aucs)/100], fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_nn_aucs.txt", [sum(test_nn_aucs)/100])
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_f1.txt",[sum(total_f1)/TASK_NUM] ,fmt='%s')
 
 

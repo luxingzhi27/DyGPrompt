@@ -14,6 +14,8 @@ from model.tgn_ import TGN
 from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_dd_data, compute_time_statistics
 from model.prompt import Tprog_prompt_layer
+from utils.log_utils import setup_logger, get_pbar, save_results_to_txt
+
 torch.manual_seed(0)
 np.random.seed(0)
 
@@ -106,19 +108,7 @@ get_checkpoint_path = lambda \
     epoch: f'./saved_checkpoints/{args.prefix}-{args.data}-{epoch}-{"prompt"}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-Path("log/").mkdir(parents=True, exist_ok=True)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_Tprog_link_f")
 logger.info(args)
 
 ### Extract data for training, validation and testing
@@ -276,8 +266,9 @@ for i in range(args.n_runs):
     best_epoch = 0
     early_stopper = EarlyStopMonitor(max_round=args.patience)
 
-    for epoch in range(10):
-      print(epoch)
+    epoch_pbar = get_pbar(range(10), desc="Epochs")
+    for epoch in epoch_pbar:
+      # print(epoch)
       loss = 0
       
       start_epoch = time.time()
@@ -352,8 +343,9 @@ for i in range(args.n_runs):
       
        
 
-      logger.info(
-          f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
+      # logger.info(
+      #     f'Epoch {epoch}: train loss: {loss / num_batch}, val auc: {val_auc}, time: {time.time() - start_epoch}')
+      epoch_pbar.set_postfix({'loss': f'{loss / num_batch:.4f}', 'val_auc': f'{val_auc:.4f}'})
 
 
      
@@ -371,13 +363,11 @@ nn_test_ap, nn_test_auc = eval_edge_prediction_F(model=tgn,
 
 
 
-folder_path = "./result_super/link/%s"%(DATA)  
+folder_path = f"./result_super/link/{DATA}"
 
-
-np.savetxt(f"{folder_path}/{NAME}_auc.txt", [test_auc], fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_ap.txt", [test_ap], fmt='%s')
-
-np.savetxt(f"{folder_path}/{NAME}_nn_auc.txt", [nn_test_auc], fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_nn_ap.txt",[nn_test_ap] ,fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_auc.txt", [test_auc])
+save_results_to_txt(folder_path, f"{NAME}_ap.txt", [test_ap])
+save_results_to_txt(folder_path, f"{NAME}_nn_auc.txt", [nn_test_auc])
+save_results_to_txt(folder_path, f"{NAME}_nn_ap.txt", [nn_test_ap])
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_acc.txt",[sum(total_f1)/args.runs] ,fmt='%s')
 

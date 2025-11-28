@@ -18,6 +18,7 @@ from sklearn.metrics import roc_auc_score
 from module import TGAN
 from graph import NeighborFinder
 from utils import EarlyStopMonitor, RandEdgeSampler
+from log_utils import setup_logger, get_pbar, log_epoch_stats, save_results_to_txt
 import torch.nn.functional as F
 
 ### Argument and global variables
@@ -74,18 +75,7 @@ MODEL_SAVE_PATH = f'./CPDG_models/{args.prefix}-{args.agg_method}-{args.attn_mod
 get_checkpoint_path = lambda epoch: f'./saved_checkpoints/{args.prefix}-{args.agg_method}-{args.attn_mode}-{args.data}-{epoch}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_CPDG")
 logger.info(args)
 
 #loss function
@@ -252,14 +242,17 @@ early_stopper = EarlyStopMonitor()
 
 best_ap = 0
 best_epoch = 0
-for epoch in range(NUM_EPOCH):
+epoch_pbar = get_pbar(range(NUM_EPOCH), desc="Epochs")
+for epoch in epoch_pbar:
     # Training 
     # training use only training graph
     tgan.ngh_finder = train_ngh_finder
     acc, ap, f1, auc, m_loss = [], [], [], [], []
     np.random.shuffle(idx_list)
-    logger.info('start {} epoch'.format(epoch))
-    for k in range(num_batch):
+    # logger.info('start {} epoch'.format(epoch))
+    
+    batch_pbar = get_pbar(range(num_batch), desc=f"Epoch {epoch+1}/{NUM_EPOCH}", leave=False)
+    for k in batch_pbar:
         # percent = 100 * k / num_batch
         # if k % int(0.2 * num_batch) == 0:
         #     logger.info('progress: {0:10.4f}'.format(percent))
@@ -324,10 +317,13 @@ for epoch in range(NUM_EPOCH):
         # get training results
 
         m_loss.append(loss.item())
+        batch_pbar.set_postfix({'loss': f'{loss.item():.4f}'})
+
     if epoch == (NUM_EPOCH-2):
         torch.save(tgan.state_dict(), MODEL_SAVE_PATH)
 
     x = np.mean(m_loss)
+    log_epoch_stats(logger, epoch, loss=x)
 torch.save(tgan.state_dict(), MODEL_SAVE_PATH)
         
         

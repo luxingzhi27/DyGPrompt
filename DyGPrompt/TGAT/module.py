@@ -316,6 +316,7 @@ class AttnModel(torch.nn.Module):
         
         self.feat_dim = feat_dim
         self.time_dim = time_dim
+        self.edge_dim = edge_dim
         
         self.edge_in_dim = (feat_dim + edge_dim + time_dim)
         self.model_dim = self.edge_in_dim
@@ -368,7 +369,7 @@ class AttnModel(torch.nn.Module):
 
 
         src_ext = torch.unsqueeze(src, dim=1) # src [B, 1, D]
-        src_e_ph = torch.zeros_like(src_ext)
+        src_e_ph = torch.zeros(src_ext.size(0), 1, self.edge_dim).to(src.device)
         q = torch.cat([src_ext, src_e_ph, src_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
         k = torch.cat([seq, seq_e, seq_t], dim=2) # [B, 1, D + De + Dt] -> [B, 1, D]
         # print(q.size())
@@ -460,7 +461,7 @@ class TGAN(torch.nn.Module):
         
         
         self.n_feat_dim = self.feat_dim
-        self.e_feat_dim = self.feat_dim
+        self.e_feat_dim = self.e_feat_th.shape[1]
         self.model_dim = self.feat_dim
         
         self.use_time = use_time
@@ -469,7 +470,7 @@ class TGAN(torch.nn.Module):
         if agg_method == 'attn':
             self.logger.info('Aggregation uses attention model')
             self.attn_model_list = torch.nn.ModuleList([AttnModel(self.feat_dim, 
-                                                               self.feat_dim, 
+                                                               self.e_feat_dim, # [修改] 传入正确的边维度，原为 self.feat_dim
                                                                self.feat_dim,
                                                                attn_mode=attn_mode, 
                                                                n_head=n_head, 
@@ -477,12 +478,12 @@ class TGAN(torch.nn.Module):
         elif agg_method == 'lstm':
             self.logger.info('Aggregation uses LSTM model')
             self.attn_model_list = torch.nn.ModuleList([LSTMPool(self.feat_dim,
-                                                                 self.feat_dim,
+                                                                 self.e_feat_dim, # [修改] 传入正确的边维度
                                                                  self.feat_dim) for _ in range(num_layers)])
         elif agg_method == 'mean':
             self.logger.info('Aggregation uses constant mean model')
             self.attn_model_list = torch.nn.ModuleList([MeanPool(self.feat_dim,
-                                                                 self.feat_dim) for _ in range(num_layers)])
+                                                                 self.e_feat_dim) for _ in range(num_layers)]) # [修改] 传入正确的边维度       
         else:
         
             raise ValueError('invalid agg_method value, use attn or lstm')

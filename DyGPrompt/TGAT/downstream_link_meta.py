@@ -19,6 +19,7 @@ from module import TGAN
 from graph import NeighborFinder
 from utils import EarlyStopMonitor, RandEdgeSampler
 from prompt import node_prompt_layer
+from log_utils import setup_logger, get_pbar, log_epoch_stats, save_results_to_txt
 ### Argument and global variables
 parser = argparse.ArgumentParser('Interface for TGAT experiments on link predictions')
 parser.add_argument('-d', '--data', type=str, help='data sources to use, try wikipedia or reddit', default='wikipedia')
@@ -70,18 +71,7 @@ MODEL_SAVE_PATH = f'./saved_models/{args.prefix}-{args.agg_method}-{args.attn_mo
 get_checkpoint_path = lambda epoch: f'./saved_link/{args.prefix}-{args.agg_method}-{args.attn_mode}-{args.data}-{epoch}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_meta")
 logger.info(args)
 
 
@@ -289,9 +279,12 @@ test_nn_aps = []
 test_nn_aucs = []
 tgan.load_state_dict(torch.load(model_path),strict=False)
 tgan.ngh_finder = train_ngh_finder
-for task in range(100):
-    logger.info('start {} task'.format(task))
-    for epoch in range(20):
+
+task_pbar = get_pbar(range(100), desc="Tasks")
+for task in task_pbar:
+    # logger.info('start {} task'.format(task))
+    epoch_pbar = get_pbar(range(20), desc=f"Task {task+1} Epochs", leave=False)
+    for epoch in epoch_pbar:
         # Training 
         # training use only training graph
 
@@ -367,6 +360,7 @@ for task in range(100):
         # nn_val_acc, nn_val_ap, nn_val_f1, nn_val_auc = eval_one_epoch_0('val for new nodes', tgan, nn_val_rand_sampler, nn_val_src_l, 
         # nn_val_dst_l, nn_val_ts_l, nn_val_label_l)
         
+        epoch_pbar.set_postfix({'loss': f'{np.mean(m_loss):.4f}', 'val_auc': f'{val_auc:.4f}'})
             
         # logger.info('epoch: {}:'.format(epoch))
         # logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
@@ -376,7 +370,7 @@ for task in range(100):
         # logger.info('train f1: {}, val f1: {}, new node val f1: {}'.format(np.mean(f1), val_f1, nn_val_f1))
     test_acc, test_ap, test_f1, test_auc = eval_one_epoch('test for old nodes', tgan, test_rand_sampler, test_src_l, 
         test_dst_l, test_ts_l, test_label_l)
-    print(test_auc)
+    # print(test_auc)
 
 
     nn_test_acc, nn_test_ap, nn_test_f1, nn_test_auc = eval_one_epoch('test for new nodes', tgan, nn_test_rand_sampler, nn_test_src_l, 
@@ -385,7 +379,20 @@ for task in range(100):
     test_aucs.append(test_auc)
     test_nn_aps.append(nn_test_ap)
     test_nn_aucs.append(nn_test_auc)
-    print(nn_test_auc)
+    # print(nn_test_auc)
+    
+    task_pbar.set_postfix({'test_auc': f'{test_auc:.4f}', 'nn_test_auc': f'{nn_test_auc:.4f}'})
+
+# Save results
+final_results = np.array([
+    sum(test_aucs)/100,
+    sum(test_aps)/100,
+    sum(test_nn_aucs)/100,
+    sum(test_nn_aps)/100
+])
+save_results_to_txt("results", f"{args.prefix}_{args.data}_meta_results.txt", final_results)
+
+logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")
         # if early_stopper.early_stop_check(val_ap):
         #     logger.info('No improvment over {} epochs, stop training'.format(early_stopper.max_round))
         #     logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')

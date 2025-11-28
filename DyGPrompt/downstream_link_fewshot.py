@@ -12,6 +12,7 @@ from evaluation.evaluation import eval_edge_prediction_fewshot,eval_edge_predict
 from model.tgn_ import TGN
 from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_d_data, compute_time_statistics
+from utils.log_utils import setup_logger, get_pbar, log_epoch_stats, log_test_stats, save_results_to_txt
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -105,19 +106,7 @@ get_checkpoint_path = lambda \
     epoch: f'./saved_checkpoints/{args.prefix}-{args.data}-{epoch}-{"prompt"}.pth'
 
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-Path("log/").mkdir(parents=True, exist_ok=True)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f"{args.prefix}_{args.data}_fewshot")
 logger.info(args)
 
 ### Extract data for training, validation and testing
@@ -158,7 +147,8 @@ test_aucs = []
 test_nn_aps = []
 test_nn_aucs = [] 
 
-for task in range(100):
+task_pbar = get_pbar(range(100), desc="Tasks")
+for task in task_pbar:
     i = 0
     results_path = "results/{}_{}.pkl".format(args.prefix, i) if i > 0 else "results/{}.pkl".format(args.prefix)
     Path("results/").mkdir(parents=True, exist_ok=True)
@@ -195,8 +185,8 @@ for task in range(100):
     num_instance = len(train_data.sources)
     num_batch = math.ceil(num_instance / BATCH_SIZE)
 
-    logger.info('num of training instances: {}'.format(num_instance))
-    logger.info('num of batches per epoch: {}'.format(num_batch))
+    # logger.info('num of training instances: {}'.format(num_instance))
+    # logger.info('num of batches per epoch: {}'.format(num_batch))
     idx_list = np.arange(num_instance)
 
     new_nodes_val_aps = []
@@ -206,7 +196,8 @@ for task in range(100):
     train_losses = []
 
     early_stopper = EarlyStopMonitor(max_round=args.patience)
-    for epoch in range(NUM_EPOCH):
+    epoch_pbar = get_pbar(range(NUM_EPOCH), desc=f"Task {task+1} Epochs", leave=False)
+    for epoch in epoch_pbar:
         start_epoch = time.time()
         ### Training
 
@@ -218,7 +209,7 @@ for task in range(100):
         tgn.set_neighbor_finder(train_ngh_finder)
         m_loss = []
 
-        logger.info('start {} epoch'.format(epoch))
+        # logger.info('start {} epoch'.format(epoch))
 
         loss = 0
         #   optimizer.zero_grad()
@@ -316,12 +307,14 @@ for task in range(100):
         total_epoch_time = time.time() - start_epoch
         total_epoch_times.append(total_epoch_time)
 
-        logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
-        logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
-        logger.info(
-        'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
-        logger.info(
-        'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
+        # logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
+        # logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
+        # logger.info(
+        # 'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
+        # logger.info(
+        # 'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
+        
+        epoch_pbar.set_postfix({'loss': f'{np.mean(m_loss):.4f}', 'val_auc': f'{val_auc:.4f}'})
 
         # Early stopping
         # if early_stopper.early_stop_check(val_ap):
@@ -360,10 +353,13 @@ for task in range(100):
     test_nn_aps.append(nn_test_ap)
     test_nn_aucs.append(nn_test_auc)
 
-    logger.info(
-        'Test statistics: Old nodes -- auc: {}, ap: {}'.format(test_auc, test_ap))
-    logger.info(
-        'Test statistics: New nodes -- auc: {}, ap: {}'.format(nn_test_auc, nn_test_ap))
+    # logger.info(
+    #     'Test statistics: Old nodes -- auc: {}, ap: {}'.format(test_auc, test_ap))
+    # logger.info(
+    #     'Test statistics: New nodes -- auc: {}, ap: {}'.format(nn_test_auc, nn_test_ap))
+    
+    task_pbar.set_postfix({'test_auc': f'{test_auc:.4f}', 'nn_test_auc': f'{nn_test_auc:.4f}'})
+    
     # Save results for this run
     # pickle.dump({
     #     "val_aps": val_aps,
@@ -386,12 +382,13 @@ for task in range(100):
 folder_path = "./"  
 
 #save result
+final_results = np.array([
+    sum(test_aucs)/100,
+    sum(test_aps)/100,
+    sum(test_nn_aucs)/100,
+    sum(test_nn_aps)/100
+])
+save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results.txt", final_results)
 
+logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")
 
-# np.savetxt(f"{folder_path}/{NAME}_auc.txt", test_aucs, fmt='%s')
-# np.savetxt(f"{folder_path}/{NAME}_ap.txt", test_aps, fmt='%s')
-
-np.savetxt(f"{folder_path}/{NAME}_total_mean_aucs.txt", [sum(test_aucs)/100], fmt='%s')
-# np.savetxt(f"{folder_path}/{NAME}_total_mean_ap.txt",[sum(test_aps)/100] ,fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}nn_total_mean_aucs.txt", [sum(test_nn_aucs)/100], fmt='%s')
-# np.savetxt(f"{folder_path}/{NAME}nn_total_mean_ap.txt",[sum(test_nn_aps)/100] ,fmt='%s')

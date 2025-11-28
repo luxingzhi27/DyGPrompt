@@ -6,7 +6,6 @@ import sys
 import random
 import argparse
 from itertools import chain
-from tqdm import tqdm
 import torch
 import pandas as pd
 import numpy as np
@@ -16,6 +15,7 @@ from sklearn.metrics import f1_score,precision_score
 from module import TGAN
 from graph import NeighborFinder
 from prompt import Tprog_prompt_layer
+from log_utils import setup_logger, get_pbar, save_results_to_txt
 
 class LR(torch.nn.Module):
     #drop default = 0.3,best = 0.1
@@ -127,19 +127,7 @@ TRAIN_SHOT_NUM = args.train_shot_num
 VAL_SHOT_NUM = args.val_shot_num
 TEST_SHOT_NUM = args.test_shot_num
 ### set up logger
-logging.basicConfig(level=logging.INFO)
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('log/{}.log'.format(str(time.time())))
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(fh)
-logger.addHandler(ch)
+logger = setup_logger(f'log/{time.time()}.log')
 logger.info(args)
 def eval_epoch(src_l, dst_l, ts_l, label_l, lr_model, tgan, prompt, shot_num,num_layer=NODE_LAYER):
     
@@ -321,7 +309,8 @@ path_model = './saved_models/{}_wiki_node_class.pth'.format(DATA)
 path_prompt =  './saved_models/{}_prompt_node.pth'.format(DATA)
 path_time_prompt =  './saved_models/{}_time_prompt_node.pth'.format(DATA)
 
-for task in tqdm(range(TASK_NUM)):  
+task_pbar = get_pbar(range(TASK_NUM), desc="Tasks")
+for task in task_pbar:
 
     time_stamp = task_time_set[task]
     ts_flag = (ts_l <= time_stamp)
@@ -434,7 +423,9 @@ for task in tqdm(range(TASK_NUM)):
     val_acc_re = []
     val_auc_re = []
     val_f1_re  = []
-    for epoch in range(200):
+    
+    epoch_pbar = get_pbar(range(200), desc=f"Task {task+1} Epochs", leave=False)
+    for epoch in epoch_pbar:
         # indices_0 = random.sample(range(0, int(len(train_src_l)/2)),TRAIN_SHOT_NUM)
         # indices_1 = random.sample(range(int(len(train_src_l)/2),len(train_src_l)),TRAIN_SHOT_NUM)
         indices_1 = random.sample(range(0, 10),TRAIN_SHOT_NUM)
@@ -490,6 +481,7 @@ for task in tqdm(range(TASK_NUM)):
         torch.save(prompt.state_dict(), path_prompt)
         torch.save(tgan.time_prompt.state_dict(), path_time_prompt)
         
+        epoch_pbar.set_postfix({'val_auc': f'{val_auc:.4f}'})
     
     lr_model.load_state_dict(torch.load(path_model))
     prompt.load_state_dict(torch.load(path_prompt))
@@ -505,12 +497,14 @@ for task in tqdm(range(TASK_NUM)):
     total_auc.append(test_auc)
     # total_acc.append(test_acc)
     total_f1.append(test_f1)
+    
+    task_pbar.set_postfix({'test_auc': f'{test_auc:.4f}'})
 
     #torch.save(lr_model.state_dict(), './saved_models/edge_{}_wkiki_node_class.pth'.format(DATA))
 
 
-np.savetxt(f"{DATA}_auc.txt", total_auc, fmt='%s')
-np.savetxt(f"{DATA}_f1.txt", total_f1, fmt='%s')
+# np.savetxt(f"{DATA}_auc.txt", total_auc, fmt='%s')
+# np.savetxt(f"{DATA}_f1.txt", total_f1, fmt='%s')
 
 # logger.info(f'wiki_total_mean_auc: {sum(total_auc)/TASK_NUM}')
 # logger.info(f'wiki_total_mean_acc: {sum(total_acc)/TASK_NUM}')
@@ -522,14 +516,13 @@ np.savetxt(f"{DATA}_f1.txt", total_f1, fmt='%s')
 NAME = args.name
 # folder_path = "./Tprog/%s"%(DATA)  
 FUNCTION = args.fn
-folder_path = "./down_stream_result/%s/node/unsuper"%(FUNCTION) 
+folder_path = f"./down_stream_result/{FUNCTION}/node/unsuper"
 
+save_results_to_txt(folder_path, f"{NAME}_auc.txt", total_auc)
+save_results_to_txt(folder_path, f"{NAME}_f1.txt", total_f1)
 
-np.savetxt(f"{folder_path}/{NAME}_auc.txt", total_auc, fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_f1.txt", total_f1, fmt='%s')
-
-np.savetxt(f"{folder_path}/{NAME}_total_mean_auc.txt", [sum(total_auc)/TASK_NUM], fmt='%s')
-np.savetxt(f"{folder_path}/{NAME}_total_mean_f1.txt",[sum(total_f1)/TASK_NUM] ,fmt='%s')
+save_results_to_txt(folder_path, f"{NAME}_total_mean_auc.txt", [sum(total_auc)/TASK_NUM])
+save_results_to_txt(folder_path, f"{NAME}_total_mean_f1.txt", [sum(total_f1)/TASK_NUM])
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_acc.txt",[sum(total_f1)/args.runs] ,fmt='%s')
 
 
