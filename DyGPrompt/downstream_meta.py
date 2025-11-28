@@ -351,7 +351,7 @@ for task in task_pbar:
       #
       train_losses.append(loss)
 
-      val_auc = eval_node_classification_GP(tgn, decoder, val_data, full_data.edge_idxs,VAL_SHOT_NUM,prompt,
+      val_auc, val_acc, val_f1 = eval_node_classification_GP(tgn, decoder, val_data, full_data.edge_idxs,VAL_SHOT_NUM,prompt,
                                         n_neighbors=NUM_NEIGHBORS)
       val_aucs.append(val_auc)
       
