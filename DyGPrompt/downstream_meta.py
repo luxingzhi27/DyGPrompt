@@ -168,7 +168,7 @@ for i in range(len(labels)):
     if (timestamps[i]>task_end_time or timestamps[i]<task_start_time) and labels[i]:
         count +=1
 #
-task_time_set = random.sample(set(task_time_pool),100)
+task_time_set = random.sample(sorted(set(task_time_pool)),100)
 np.savetxt("wiki_task_time", task_time_set, fmt='%s')
   
   
@@ -211,13 +211,13 @@ for task in task_pbar:
           record[sources[i]] = 1 
   num_indices = 10  # 
 
-  train_indices_1 = random.sample(set(np.where(ts_label_flag_1 == 1)[0]), num_indices)
-  train_indices_0 = random.sample(set(np.where((ts_label_flag_1 == 0))[0]), num_indices*5)
+  train_indices_1 = random.sample(sorted(set(np.where(ts_label_flag_1 == 1)[0])), num_indices)
+  train_indices_0 = random.sample(sorted(set(np.where((ts_label_flag_1 == 0))[0])), num_indices*5)
   
   ts_label_flag_1[train_indices_1], ts_label_flag_1[train_indices_0] = -1, -2
   
-  val_indices_1 = random.sample(set(np.where(ts_label_flag_1 == 1)[0]), num_indices)
-  val_indices_0 = random.sample(set(np.where((ts_label_flag_1 == 0))[0]), num_indices*5)
+  val_indices_1 = random.sample(sorted(set(np.where(ts_label_flag_1 == 1)[0])), num_indices)
+  val_indices_0 = random.sample(sorted(set(np.where((ts_label_flag_1 == 0))[0])), num_indices*5)
   
   train_indices =  train_indices_1 + train_indices_0
 
