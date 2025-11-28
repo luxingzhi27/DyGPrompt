@@ -69,14 +69,14 @@ python downstream_meta_tgn.py --use_memory --prefix TGN
 Pre-train:
 
 ```{bash}
-python -u pretrain.py -d wikipedia --bs 200 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT
+python -u TGAT/pretrain.py -d wikipedia --bs 200 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT
 ```
 
 Prompt tuning and test:
 
 ```{bash}
-python -u downstream_link_meta.py -d wikipedia --bs 512 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT --name TGAT_LINK --fn saved
-python -u node_task_meta.py -d genre --bs 100 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT
+python -u TGAT/downstream_link_meta.py -d wikipedia --bs 512 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT --name TGAT_LINK --fn saved
+python -u TGAT/node_task_meta.py -d genre --bs 100 --uniform  --n_degree 20 --agg_method attn --attn_mode prod --gpu 0 --n_head 2 --prefix TGAT
 ```
 
 
