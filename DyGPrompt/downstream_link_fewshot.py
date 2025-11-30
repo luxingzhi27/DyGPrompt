@@ -167,7 +167,8 @@ for task in task_pbar:
                 mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
-                dyrep=args.dyrep,struc_prompt_tag=True, time_prompt_tag=True, meta_tag=True, tag=1)
+                # struc_prompt_tag=False to align with paper's parameter efficiency claim
+                dyrep=args.dyrep,struc_prompt_tag=False, time_prompt_tag=True, meta_tag=True, tag=3)
     criterion = torch.nn.BCELoss()
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
     tgn.load_state_dict(torch.load(model_path),strict=False)

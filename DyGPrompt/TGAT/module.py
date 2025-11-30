@@ -391,20 +391,20 @@ class META_NET(nn.Module):
         super(META_NET, self).__init__()
         
         self.mlp1 = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 128)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu1", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 128, input_dim)),
+            ("linear2", nn.Linear(input_dim // 2, input_dim)),
         ]))
         
         self.mlp2 = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 128)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu1", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 128, input_dim)),
+            ("linear2", nn.Linear(input_dim // 2, input_dim)),
         ]))
         self.mlp3 = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 128)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu1", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 128, input_dim)),
+            ("linear2", nn.Linear(input_dim // 2, input_dim)),
         ]))
 
     def forward(self, x, use_mlp=1):
@@ -818,7 +818,7 @@ class TGAN(torch.nn.Module):
        
         if curr_layers == 0:
 
-            src_node_feat = self.structure_prompt(src_idx_l,src_node_feat)
+            # src_node_feat = self.structure_prompt(src_idx_l,src_node_feat)
         #meta_0
             pai = self._meta_net(src_node_feat.unsqueeze(1),use_mlp = 2 ) #(N*32)
 

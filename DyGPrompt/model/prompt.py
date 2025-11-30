@@ -7,15 +7,15 @@ class META_NET(nn.Module):
         super(META_NET, self).__init__()
         
         self.mlp1 = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 16)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu1", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 16, input_dim//2)),
+            ("linear2", nn.Linear(input_dim // 2, input_dim//2)),
         ]))
         
         self.mlp2 = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 16)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu1", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 16, input_dim//2)),
+            ("linear2", nn.Linear(input_dim // 2, input_dim//2)),
         ]))
 
     def forward(self, x, use_mlp=1):
@@ -127,9 +127,9 @@ class metanet(nn.Module):
     def __init__(self,input_dim,output_dim):
         super(metanet,self).__init__()
         self.meta_net = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(input_dim, input_dim // 16)),
+            ("linear1", nn.Linear(input_dim, input_dim // 2)),
             ("relu", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(input_dim // 16, output_dim))
+            ("linear2", nn.Linear(input_dim // 2, output_dim))
         ]))
         
      

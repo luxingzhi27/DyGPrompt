@@ -42,9 +42,9 @@ class TGN(torch.nn.Module):
       self.struc_prompt = None
     if self.meta_tag:
       self.meta_net = nn.Sequential(OrderedDict([
-              ("linear1", nn.Linear(input_dim, input_dim //4 )),
+              ("linear1", nn.Linear(input_dim, input_dim // 2 )),
               ("relu", nn.ReLU(inplace=True)),
-              ("linear2", nn.Linear(input_dim // 4, input_dim))
+              ("linear2", nn.Linear(input_dim // 2, input_dim))
           ]))
     else:
       self.meta_net = None

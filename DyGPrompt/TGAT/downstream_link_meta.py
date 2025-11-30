@@ -95,18 +95,8 @@ def eval_one_epoch(hint, tgan, sampler, src, dst, ts, label):
 
             size = len(src_l_cut)
             src_l_fake, dst_l_fake = sampler.sample(size)
-            # pos_prob, neg_prob = tgan.contrast(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
-            src_embed,target_embed,background_embed = tgan.contrast_0(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
-            # src_embed = prompt(src_embed)
-            # target_embed =prompt(target_embed)
-            # background_embed = prompt(background_embed)
+            pos_prob, neg_prob = tgan.contrast(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
             
-            
-            
-            pos_s= tgan.affinity_score(src_embed, target_embed).squeeze(dim=-1)
-            neg_s = tgan.affinity_score(src_embed, background_embed).squeeze(dim=-1)
-            pos_prob = pos_s.sigmoid()
-            neg_prob = neg_s.sigmoid()
             pred_score = np.concatenate([(pos_prob).cpu().numpy(), (neg_prob).cpu().numpy()])
             pred_label = pred_score > 0.5
             true_label = np.concatenate([np.ones(size), np.zeros(size)])
@@ -133,16 +123,8 @@ def eval_one_epoch_0(hint, tgan, sampler, src, dst, ts, label):
 
         size = len(src_l_cut)
         src_l_fake, dst_l_fake = sampler.sample(size)
-        # pos_prob, neg_prob = tgan.contrast(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
-        src_embed,target_embed,background_embed = tgan.contrast_0(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
-        # src_embed = prompt(src_embed)
-        # target_embed =prompt(target_embed)
-        # background_embed = prompt(background_embed)
+        pos_prob, neg_prob = tgan.contrast(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
 
-        pos_s= tgan.affinity_score(src_embed, target_embed).squeeze(dim=-1)
-        neg_s = tgan.affinity_score(src_embed, background_embed).squeeze(dim=-1)
-        pos_prob = pos_s.sigmoid()
-        neg_prob = neg_s.sigmoid()
         pred_score = np.concatenate([(pos_prob).cpu().numpy(), (neg_prob).cpu().numpy()])
         pred_label = pred_score > 0.5
         true_label = np.concatenate([np.ones(size), np.zeros(size)])
@@ -321,25 +303,15 @@ for task in task_pbar:
         background_embed = prompt(background_embed)
         
         
+        tgan = tgan.train()
+        pos_prob, neg_prob = tgan.contrast(src_l_cut, dst_l_cut, dst_l_fake, ts_l_cut, NUM_NEIGHBORS)
         
-        pos_s= tgan.affinity_score(src_embed, target_embed).squeeze(dim=-1)
-        neg_s = tgan.affinity_score(src_embed, background_embed).squeeze(dim=-1)
-        pos_prob = pos_s.sigmoid()
-        neg_prob = neg_s.sigmoid()
     
     
     
             # get training results
         
-        tgan = tgan.eval()
-        pred_score = np.concatenate([(pos_prob).cpu().detach().numpy(), (neg_prob).cpu().detach().numpy()])
-        pred_label = pred_score > 0.5
-
-        true_label = np.concatenate([np.ones(size), np.zeros(size)])
-        # acc.append((pred_label == true_label).mean())
-        # ap.append(average_precision_score(true_label, pred_score))
-        
-        loss = criterion(pos_prob, pos_label) + criterion(neg_prob, neg_label)
+        tgan = tgan.eval()os_prob, pos_label) + criterion(neg_prob, neg_label)
         # loss = loss + criterion(neg_prob, neg_label)
         
         loss.backward()
@@ -352,13 +324,13 @@ for task in task_pbar:
         # f1.append(f1_score(true_label, pred_label))
         m_loss.append(loss.item())
 
-        # validation phase use all information
-        # tgan.ngh_finder = full_ngh_finder
-        val_acc, val_ap, val_f1, val_auc = eval_one_epoch_0('val for old nodes', tgan, val_rand_sampler, val_src_l, 
-        val_dst_l, val_ts_l, val_label_l)
-
-        # nn_val_acc, nn_val_ap, nn_val_f1, nn_val_auc = eval_one_epoch_0('val for new nodes', tgan, nn_val_rand_sampler, nn_val_src_l, 
-        # nn_val_dst_l, nn_val_ts_l, nn_val_label_l)
+        loss.backward()
+        meta_prompt_optimizer.step()
+        meta_prompt_optimizer_1.step()
+        time_prompt_optimizer.step()
+        # structure_prompt_optimizer.step()
+        optimizer.step()
+        prompt_optimizer.step()ts_l, nn_val_label_l)
         
         epoch_pbar.set_postfix({'loss': f'{np.mean(m_loss):.4f}', 'val_auc': f'{val_auc:.4f}'})
             
