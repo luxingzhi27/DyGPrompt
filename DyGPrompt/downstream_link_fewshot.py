@@ -178,9 +178,22 @@ for task in task_pbar:
 
     # prompt_optimizer = torch.optim.Adam(tgn.prompt.parameters(), lr=LEARNING_RATE)
     optimizer = torch.optim.Adam(tgn.affinity_score.parameters(), lr=LEARNING_RATE)
-    struc_prompt_optimizer = torch.optim.Adam(tgn.struc_prompt.parameters(), lr=0.01)
-    time_prompt_optimizer = torch.optim.Adam(tgn.time_prompt.parameters(), lr=0.01)
-    meta_optimizer = torch.optim.Adam(tgn.meta_net.parameters(), lr=0.001)
+    
+    if tgn.struc_prompt is not None:
+        struc_prompt_optimizer = torch.optim.Adam(tgn.struc_prompt.parameters(), lr=0.01)
+    else:
+        struc_prompt_optimizer = None
+        
+    if tgn.time_prompt is not None:
+        time_prompt_optimizer = torch.optim.Adam(tgn.time_prompt.parameters(), lr=0.01)
+    else:
+        time_prompt_optimizer = None
+        
+    if tgn.meta_net is not None:
+        meta_optimizer = torch.optim.Adam(tgn.meta_net.parameters(), lr=0.001)
+    else:
+        meta_optimizer = None
+        
     tgn = tgn.to(device)
 
     num_instance = len(train_data.sources)
@@ -216,9 +229,12 @@ for task in task_pbar:
         #   optimizer.zero_grad()
         # prompt_optimizer.zero_grad()
         optimizer.zero_grad()
-        time_prompt_optimizer.zero_grad()
-        meta_optimizer.zero_grad()
-        struc_prompt_optimizer.zero_grad()
+        if time_prompt_optimizer:
+            time_prompt_optimizer.zero_grad()
+        if meta_optimizer:
+            meta_optimizer.zero_grad()
+        if struc_prompt_optimizer:
+            struc_prompt_optimizer.zero_grad()
 
         x= min(10, len(train_data.sources))
 
@@ -248,9 +264,12 @@ for task in task_pbar:
 
         loss.backward()
         optimizer.step()
-        time_prompt_optimizer.step()
-        meta_optimizer.step()
-        struc_prompt_optimizer.step()
+        if time_prompt_optimizer:
+            time_prompt_optimizer.step()
+        if meta_optimizer:
+            meta_optimizer.step()
+        if struc_prompt_optimizer:
+            struc_prompt_optimizer.step()
         # prompt_optimizer.step()
         m_loss.append(loss.item())
 
