@@ -178,6 +178,9 @@ np.savetxt("wiki_task_time", task_time_set, fmt='%s')
 
 full_data = Data(sources, destinations, timestamps, edge_idxs, labels)
 
+max_idx = max(full_data.unique_nodes)
+full_ngh_finder = get_neighbor_finder(full_data, uniform=UNIFORM, max_node_idx=max_idx)
+
 TRAIN_SHOT_NUM = args.train_shot_num
 VAL_SHOT_NUM = args.val_shot_num
 TEST_SHOT_NUM = args.test_shot_num
@@ -386,12 +389,12 @@ for task in task_pbar:
         "new_nodes_val_aps": [],
       }, open(results_path, "wb"))
       
-      save_dict = {
-          'decoder': decoder.state_dict(),
-          'prompt': prompt.state_dict(),
-          'tgn': tgn.state_dict()
-      }
-      torch.save(save_dict, get_checkpoint_path(epoch))
+      # save_dict = {
+      #     'decoder': decoder.state_dict(),
+      #     'prompt': prompt.state_dict(),
+      #     'tgn': tgn.state_dict()
+      # }
+      # torch.save(save_dict, get_checkpoint_path(epoch))
       
       # if early_stopper.early_stop_check(val_auc):
       #     logger.info(f'No improvement over {early_stopper.max_round} epochs, stop training')
@@ -406,6 +409,7 @@ for task in task_pbar:
   
     decoder.eval()
     TEST_SHOT_NUM = 0
+    tgn.set_neighbor_finder(full_ngh_finder)
     test_auc, test_acc, test_f1 = eval_node_classification_GP(
         tgn, decoder, test_data, test_data.edge_idxs,
         TEST_SHOT_NUM, prompt, n_neighbors=NUM_NEIGHBORS
