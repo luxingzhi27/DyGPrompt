@@ -178,6 +178,9 @@ np.savetxt("wiki_task_time", task_time_set, fmt='%s')
 
 full_data = Data(sources, destinations, timestamps, edge_idxs, labels)
 
+max_idx = max(full_data.unique_nodes)
+full_ngh_finder = get_neighbor_finder(full_data, uniform=UNIFORM, max_node_idx=max_idx)
+
 TRAIN_SHOT_NUM = args.train_shot_num
 VAL_SHOT_NUM = args.val_shot_num
 TEST_SHOT_NUM = args.test_shot_num
@@ -271,7 +274,7 @@ for task in task_pbar:
                 mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
-                dyrep=args.dyrep,struc_prompt_tag=False,time_prompt_tag=True,meta_tag=True,tag=TAG)
+                dyrep=args.dyrep,struc_prompt_tag=True,time_prompt_tag=True,meta_tag=True,tag=TAG)
     tgn = tgn.to(device)
     prompt = node_prompt_layer(node_features.shape[1])
 
@@ -385,11 +388,28 @@ for task in task_pbar:
         "epoch_times": [0.0],
         "new_nodes_val_aps": [],
       }, open(results_path, "wb"))
-      torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
-    decoder.load_state_dict(torch.load(get_checkpoint_path(args.n_epoch-1)))
+      
+      # save_dict = {
+      #     'decoder': decoder.state_dict(),
+      #     'prompt': prompt.state_dict(),
+      #     'tgn': tgn.state_dict()
+      # }
+      # torch.save(save_dict, get_checkpoint_path(epoch))
+      
+      # if early_stopper.early_stop_check(val_auc):
+      #     logger.info(f'No improvement over {early_stopper.max_round} epochs, stop training')
+      #     break
+
+    # logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
+    # best_model_path = get_checkpoint_path(early_stopper.best_epoch)
+    # checkpoint = torch.load(best_model_path)
+    # decoder.load_state_dict(checkpoint['decoder'])
+    # prompt.load_state_dict(checkpoint['prompt'])
+    # tgn.load_state_dict(checkpoint['tgn'])
   
     decoder.eval()
     TEST_SHOT_NUM = 0
+    tgn.set_neighbor_finder(full_ngh_finder)
     test_auc, test_acc, test_f1 = eval_node_classification_GP(
         tgn, decoder, test_data, test_data.edge_idxs,
         TEST_SHOT_NUM, prompt, n_neighbors=NUM_NEIGHBORS
