@@ -259,6 +259,9 @@ for task in task_pbar:
         
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+
+        loss /= args.backprop_every
+
         loss.backward()
         optimizer.step()
         if time_prompt_optimizer:
@@ -267,9 +270,6 @@ for task in task_pbar:
             meta_optimizer.step()
         if struc_prompt_optimizer:
             struc_prompt_optimizer.step()
-        # prompt_optimizer.step()
-        m_loss.append(loss.item())
-        struc_prompt_optimizer.step()
         # prompt_optimizer.step()
         m_loss.append(loss.item())
 
@@ -411,4 +411,3 @@ final_results = np.array([
 save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results.txt", final_results)
 
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")
-
