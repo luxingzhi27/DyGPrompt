@@ -352,6 +352,11 @@ for task in task_pbar:
 
       labels_batch_torch = torch.from_numpy(labels_batch).float().to(device)
       source_embedding = prompt(source_embedding)
+
+      pred = decoder(source_embedding).sigmoid()
+      decoder_loss = decoder_loss_criterion(pred, labels_batch_torch)
+      decoder_loss.backward()
+
       decoder_optimizer.step()
       prompt_optimizer.step()
       #tag
@@ -361,9 +366,7 @@ for task in task_pbar:
           time_prompt_optimizer.step()
       if meta_optimizer:
           meta_optimizer.step()
-      loss += decoder_loss.item()()
-      time_prompt_optimizer.step()
-      meta_optimizer.step()
+      
       loss += decoder_loss.item()
       #
       train_losses.append(loss)
