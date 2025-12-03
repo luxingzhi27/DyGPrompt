@@ -9,7 +9,7 @@ from modules.message_function import get_message_function
 from modules.memory_updater import get_memory_updater
 from modules.embedding_module import get_embedding_module
 from model.time_encoding import TimeEncode
-from model.prompt import time_prompt_layer,structure_prompt_layer,node_prompt_layer
+from model.prompt import time_prompt_layer,structure_prompt_layer,node_prompt_layer,ContextMetaNet
 from collections import OrderedDict
 import torch.nn as nn
 class TGN(torch.nn.Module):
@@ -29,7 +29,7 @@ class TGN(torch.nn.Module):
     self.time_prompt_tag = time_prompt_tag
     self.meta_tag = meta_tag
     self.tag = tag
-    input_dim = edge_features.shape[1]
+    input_dim = node_features.shape[1]
     self.prompt = node_prompt_layer(input_dim)
     
     if self.time_prompt_tag:
@@ -37,15 +37,20 @@ class TGN(torch.nn.Module):
     else:
       self.time_prompt = None
     if self.struc_prompt_tag:
-      self.struc_prompt = structure_prompt_layer(edge_features.shape[0],input_dim)
+      self.struc_prompt = structure_prompt_layer(node_features.shape[0],input_dim)
     else:
       self.struc_prompt = None
     if self.meta_tag:
-      self.meta_net = nn.Sequential(OrderedDict([
-              ("linear1", nn.Linear(input_dim, input_dim // 2 )),
-              ("relu", nn.ReLU(inplace=True)),
-              ("linear2", nn.Linear(input_dim // 2, input_dim))
-          ]))
+      self.delta_t_projector = nn.Linear(1, input_dim)
+      #定义ncn
+      self.ncn = ContextMetaNet(input_dim*2,input_dim,alpha=2)
+
+      #定义tcn
+      mem_dim = memory_dimension if use_memory else input_dim
+      self.tcn = ContextMetaNet(input_dim + mem_dim, input_dim, alpha=2)
+
+      self.meta_net = nn.ModuleList([self.ncn,self.tcn,self.delta_t_projector])
+
     else:
       self.meta_net = None
       

@@ -176,22 +176,57 @@ class GraphEmbedding(EmbeddingModule):
 
       mask = neighbors_torch == 0
       if meta_net:
+        # 1. 解包我们在 tgn_.py 中传入的组件
+        ncn = meta_net[0]
+        tcn = meta_net[1]
+        dt_proj = meta_net[2]
+        
+        # 2. 准备上下文特征 (Context Features)
+        
+        # [Context A] 获取 Memory (用于 TCN)
+        # memory 对象已经传入此函数，直接索引即可
+        # 注意：如果是第一层(n_layers=0)，source_node_features 可能已经包含了 memory，
+        # 但为了通过 TCN 显式利用历史信息，我们再次明确提取它。
+        if memory is not None:
+          # memory: [Total_Nodes, Dim], source_nodes: [Batch]
+          mem_context = memory[source_nodes, :]
+        else:
+          mem_context = torch.zeros_like(source_node_conv_embeddings)
+
+        # [Context B] 获取 Delta t (用于 NCN)
+        # time_diffs: [Batch], 需要变形为 [Batch, 1]
+        if time_diffs is not None:
+          # 简单的线性投影: 标量 -> 向量
+          # 注意 time_diffs 在 tgn_.py 中可能被归一化了，这对 MLP 没问题
+          dt_context = dt_proj(time_diffs.unsqueeze(1).float())
+        else:
+          dt_context = torch.zeros_like(source_node_conv_embeddings)
+
+        ncn_input = torch.cat([source_node_conv_embeddings, dt_context], dim=1)
+        
+        # --- TCN: 生成 Node Prompt ---
+        # 输入: 时间特征 + 历史记忆状态
+        # source_nodes_time_embedding: [Batch, 1, Dim] -> squeeze -> [Batch, Dim]
+        tcn_input = torch.cat([source_nodes_time_embedding.squeeze(1), mem_context], dim=1)
+        
+
         if tag==1:
-          pai = meta_net(source_node_conv_embeddings)
-          pai = pai.unsqueeze(1)
-          # print(pai.size())
+          pai = ncn(ncn_input).unsqueeze(1)
+                    # print(pai.size())
           # print(source_node_conv_embeddings.size())
           # print(source_nodes_time_embedding.size())
           source_nodes_time_embedding  = source_nodes_time_embedding + pai
         elif tag==2:
-          pai = meta_net(source_nodes_time_embedding).squeeze(1)
+          pai = tcn(tcn_input)
           # print(pai.size())
           # print(source_node_conv_embeddings.size())
           # print(source_nodes_time_embedding.size())
           source_node_conv_embeddings  = source_node_conv_embeddings + pai
         else:
-          pai_1 = meta_net(source_node_conv_embeddings).unsqueeze(1)
-          pai_2 = meta_net(source_nodes_time_embedding).squeeze(1)
+          # 生成并调整维度以匹配 Time Feature [Batch, 1, Dim]
+          pai_1 = ncn(ncn_input).unsqueeze(1) 
+          # 生成 Prompt
+          pai_2 = tcn(tcn_input)
           source_nodes_time_embedding  = source_nodes_time_embedding + pai_1
           source_node_conv_embeddings  = source_node_conv_embeddings + pai_2
           

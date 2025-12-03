@@ -271,7 +271,7 @@ for task in task_pbar:
                 mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
-                dyrep=args.dyrep,struc_prompt_tag=True,time_prompt_tag=True,meta_tag=True,tag=TAG)
+                dyrep=args.dyrep,struc_prompt_tag=False,time_prompt_tag=True,meta_tag=True,tag=TAG)
     tgn = tgn.to(device)
     prompt = node_prompt_layer(edge_features.shape[1])
 
