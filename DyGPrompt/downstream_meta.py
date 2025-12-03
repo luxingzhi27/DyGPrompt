@@ -287,9 +287,20 @@ for task in task_pbar:
     decoder = decoder.to(device)
     prompt = prompt.to(device)
     
-    struc_prompt_optimizer = torch.optim.Adam(tgn.struc_prompt.parameters(), lr=0.01)
-    time_prompt_optimizer = torch.optim.Adam(tgn.time_prompt.parameters(), lr=0.01)
-    meta_optimizer = torch.optim.Adam(tgn.meta_net.parameters(), lr=0.01)
+    if tgn.struc_prompt is not None:
+        struc_prompt_optimizer = torch.optim.Adam(tgn.struc_prompt.parameters(), lr=0.01)
+    else:
+        struc_prompt_optimizer = None
+        
+    if tgn.time_prompt is not None:
+        time_prompt_optimizer = torch.optim.Adam(tgn.time_prompt.parameters(), lr=0.01)
+    else:
+        time_prompt_optimizer = None
+        
+    if tgn.meta_net is not None:
+        meta_optimizer = torch.optim.Adam(tgn.meta_net.parameters(), lr=0.01)
+    else:
+        meta_optimizer = None
 
     prompt_optimizer = torch.optim.Adam(prompt.parameters(), lr=0.01)
     decoder_loss_criterion = torch.nn.BCELoss()
@@ -325,9 +336,12 @@ for task in task_pbar:
       decoder_optimizer.zero_grad()
       prompt_optimizer.zero_grad()
       #tag
-      struc_prompt_optimizer.zero_grad()
-      time_prompt_optimizer.zero_grad()
-      meta_optimizer.zero_grad()
+      if struc_prompt_optimizer:
+          struc_prompt_optimizer.zero_grad()
+      if time_prompt_optimizer:
+          time_prompt_optimizer.zero_grad()
+      if meta_optimizer:
+          meta_optimizer.zero_grad()
  
       source_embedding, destination_embedding, _ = tgn.compute_temporal_embeddings(sources_batch,
                                                                                   destinations_batch,
@@ -344,9 +358,12 @@ for task in task_pbar:
       decoder_optimizer.step()
       prompt_optimizer.step()
       #tag
-      struc_prompt_optimizer.step()
-      time_prompt_optimizer.step()
-      meta_optimizer.step()
+      if struc_prompt_optimizer:
+          struc_prompt_optimizer.step()
+      if time_prompt_optimizer:
+          time_prompt_optimizer.step()
+      if meta_optimizer:
+          meta_optimizer.step()
       loss += decoder_loss.item()
       #
       train_losses.append(loss)

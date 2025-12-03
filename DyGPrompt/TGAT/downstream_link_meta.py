@@ -311,26 +311,20 @@ for task in task_pbar:
     
             # get training results
         
-        tgan = tgan.eval()os_prob, pos_label) + criterion(neg_prob, neg_label)
+        loss = criterion(pos_prob, pos_label) + criterion(neg_prob, neg_label)
         # loss = loss + criterion(neg_prob, neg_label)
         
-        loss.backward()
-        # meta_prompt_optimizer.step()
-        # meta_prompt_optimizer_1.step()
-        # time_prompt_optimizer.step()
-        # structure_prompt_optimizer.step()
-        optimizer.step()
-        prompt_optimizer.step()
-        # f1.append(f1_score(true_label, pred_label))
-        m_loss.append(loss.item())
-
         loss.backward()
         meta_prompt_optimizer.step()
         meta_prompt_optimizer_1.step()
         time_prompt_optimizer.step()
         # structure_prompt_optimizer.step()
         optimizer.step()
-        prompt_optimizer.step()ts_l, nn_val_label_l)
+        prompt_optimizer.step()
+        # f1.append(f1_score(true_label, pred_label))
+        m_loss.append(loss.item())
+
+        val_acc, val_ap, val_f1, val_auc = eval_one_epoch('val', tgan, val_rand_sampler, val_src_l, val_dst_l, val_ts_l, val_label_l)
         
         epoch_pbar.set_postfix({'loss': f'{np.mean(m_loss):.4f}', 'val_auc': f'{val_auc:.4f}'})
             
