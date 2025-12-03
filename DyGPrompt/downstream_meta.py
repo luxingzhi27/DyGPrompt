@@ -308,7 +308,7 @@ for task in task_pbar:
     val_aucs = []
     train_losses = []
 
-    early_stopper = EarlyStopMonitor(max_round=args.patience)
+    # early_stopper = EarlyStopMonitor(max_round=args.patience)
     epoch_pbar = get_pbar(range(args.n_epoch), desc=f"Task {task+1} Epochs", leave=False)
     for epoch in epoch_pbar:
       # start_epoch = time.time()
@@ -393,16 +393,16 @@ for task in task_pbar:
       }
       torch.save(save_dict, get_checkpoint_path(epoch))
       
-      if early_stopper.early_stop_check(val_auc):
-          logger.info(f'No improvement over {early_stopper.max_round} epochs, stop training')
-          break
+      # if early_stopper.early_stop_check(val_auc):
+      #     logger.info(f'No improvement over {early_stopper.max_round} epochs, stop training')
+      #     break
 
-    logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
-    best_model_path = get_checkpoint_path(early_stopper.best_epoch)
-    checkpoint = torch.load(best_model_path)
-    decoder.load_state_dict(checkpoint['decoder'])
-    prompt.load_state_dict(checkpoint['prompt'])
-    tgn.load_state_dict(checkpoint['tgn'])
+    # logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
+    # best_model_path = get_checkpoint_path(early_stopper.best_epoch)
+    # checkpoint = torch.load(best_model_path)
+    # decoder.load_state_dict(checkpoint['decoder'])
+    # prompt.load_state_dict(checkpoint['prompt'])
+    # tgn.load_state_dict(checkpoint['tgn'])
   
     decoder.eval()
     TEST_SHOT_NUM = 0
