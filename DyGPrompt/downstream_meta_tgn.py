@@ -11,7 +11,6 @@ import torch
 import numpy as np
 import pandas as pd
 from model.tgn_ import TGN
-from model.prompt import node_prompt_layer
 from utils.utils import EarlyStopMonitor, get_neighbor_finder, MLP
 from utils.data_processing import compute_time_statistics, get_data_node_classification
 from evaluation.evaluation import eval_node_classification
@@ -273,7 +272,6 @@ for task in task_pbar:
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
                 dyrep=args.dyrep,struc_prompt_tag=False,time_prompt_tag=False,meta_tag=False,tag=TAG)
     tgn = tgn.to(device)
-    prompt = node_prompt_layer(edge_features.shape[1])
 
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
     # print(model_path)
@@ -285,7 +283,6 @@ for task in task_pbar:
     decoder = MLP(node_features.shape[1], drop=DROP_OUT)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
     decoder = decoder.to(device)
-    prompt = prompt.to(device)
     decoder_loss_criterion = torch.nn.BCELoss()
 
     val_aucs = []
@@ -305,7 +302,6 @@ for task in task_pbar:
 
       tgn = tgn.eval()
       decoder = decoder.train()
-      prompt.train()
       loss = 0
       
       sources_batch = train_data.sources[indices]
@@ -379,7 +375,7 @@ folder_path = "./"
 # np.savetxt(f"{folder_path}/{NAME}_auc.txt", total_auc, fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_f1.txt", total_f1, fmt='%s')
 
-save_results_to_txt(f"{folder_path}/{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100])
+save_results_to_txt(folder_path, f"{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100])
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_ff1.txt",[sum(total_f1)/100] ,fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_acc_f.txt",[sum(total_acc)/100] ,fmt='%s')
 

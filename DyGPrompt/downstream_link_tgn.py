@@ -384,5 +384,5 @@ final_results = np.array([
     sum(test_nn_aucs)/100,
     sum(test_nn_aps)/100
 ])
-save_results_to_txt(f"results/{args.prefix}_{args.data}_tgn_fewshot_results.txt", final_results)
+save_results_to_txt("results", f"{args.prefix}_{args.data}_tgn_fewshot_results.txt", final_results)
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")

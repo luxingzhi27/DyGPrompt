@@ -273,7 +273,7 @@ for task in task_pbar:
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
                 dyrep=args.dyrep,struc_prompt_tag=False,time_prompt_tag=True,meta_tag=True,tag=TAG)
     tgn = tgn.to(device)
-    prompt = node_prompt_layer(edge_features.shape[1])
+    prompt = node_prompt_layer(node_features.shape[1])
 
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
     # print(model_path)
@@ -328,7 +328,7 @@ for task in task_pbar:
       sources_batch = train_data.sources[indices]
       destinations_batch = train_data.destinations[indices]
       timestamps_batch = train_data.timestamps[indices]
-      edge_idxs_batch = full_data.edge_idxs[indices]
+      edge_idxs_batch = train_data.edge_idxs[indices]
       labels_batch = train_data.labels[indices]
 
       size = len(sources_batch)
@@ -371,8 +371,10 @@ for task in task_pbar:
       #
       train_losses.append(loss)
 
-      val_auc, val_acc, val_f1 = eval_node_classification_GP(tgn, decoder, val_data, full_data.edge_idxs,VAL_SHOT_NUM,prompt,
-                                        n_neighbors=NUM_NEIGHBORS)
+      val_auc, val_acc, val_f1 = eval_node_classification_GP(
+          tgn, decoder, val_data, val_data.edge_idxs, 
+          VAL_SHOT_NUM, prompt, n_neighbors=NUM_NEIGHBORS
+      )
       val_aucs.append(val_auc)
       
       epoch_pbar.set_postfix({'loss': f'{loss:.4f}', 'val_auc': f'{val_auc:.4f}'})
@@ -388,8 +390,10 @@ for task in task_pbar:
   
     decoder.eval()
     TEST_SHOT_NUM = 0
-    test_auc,test_acc,test_f1 = eval_node_classification_GP(tgn, decoder, test_data, full_data.edge_idxs,TEST_SHOT_NUM,prompt,
-                                          n_neighbors=NUM_NEIGHBORS)
+    test_auc, test_acc, test_f1 = eval_node_classification_GP(
+        tgn, decoder, test_data, test_data.edge_idxs,
+        TEST_SHOT_NUM, prompt, n_neighbors=NUM_NEIGHBORS
+    )
     
     pickle.dump({
       "val_aps": val_aucs,
