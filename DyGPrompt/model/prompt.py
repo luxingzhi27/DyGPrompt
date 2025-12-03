@@ -25,6 +25,32 @@ class META_NET(nn.Module):
         elif use_mlp == 2:
             return self.mlp2(x)
 
+
+class ContextMetaNet(nn.Module):
+    """
+    支持上下文融合的改进版条件网络
+    input_dim: 输入特征的总维度 (例如: Node_Dim + Delta_T_Dim)
+    output_dim: 输出 Prompt 的维度
+    alpha: 瓶颈缩放因子 (论文建议为 2)
+    """
+    def __init__(self, input_dim, output_dim, alpha=2):
+        super(ContextMetaNet, self).__init__()
+        self.alpha = alpha
+        hidden_dim = input_dim // alpha
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+
+        for m in self.net:
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+
+    def forward(self, x):
+        return self.net(x)
+
 class Tprog_prompt_layer(nn.Module):
     def __init__(self,size,input_dim):
         super(Tprog_prompt_layer, self).__init__()
