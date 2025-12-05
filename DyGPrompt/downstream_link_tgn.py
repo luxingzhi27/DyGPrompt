@@ -174,7 +174,7 @@ for task in task_pbar:
 
 
 
-    optimizer = torch.optim.Adam(tgn.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.Adam(tgn.affinity_score.parameters(), lr=LEARNING_RATE)
 
     tgn = tgn.to(device)
 
