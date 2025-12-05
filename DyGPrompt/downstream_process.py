@@ -15,8 +15,13 @@ from sklearn.metrics import average_precision_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--data', type=str, default='wikipedia', help='dataset name')
+args = parser.parse_args()
 
-DATA = "wikipedia"
+
+DATA=args.data
 OUT_DF = './downstream_data/{}/ds_{}.csv'.format(DATA,DATA)
 
 ### Load data and train val test split
@@ -28,4 +33,5 @@ print(down_stream_time)
 d_data = g_df[g_df["ts"]>down_stream_time[0]]
 
 d_data.iloc[:,1:].to_csv(OUT_DF)
+
 
