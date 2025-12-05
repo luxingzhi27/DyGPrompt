@@ -459,7 +459,8 @@ final_results = np.array([
 result_header = f"Task: Node Classification (DyGPrompt Meta) | Dataset: {args.data} | " \
                 f"Struc: {args.struc_prompt} | Time: True | Node: True | Meta: {TAG} | " \
                 f"Columns: AUC, F1, ACC"
-save_results_to_txt("results", f"{args.prefix}_{args.data}_node_class_results.txt", final_results, header=result_header)
+struc_suffix = "_struc" if args.struc_prompt else "_no_struc"
+save_results_to_txt("results", f"{args.prefix}_{args.data}_node_class_results{struc_suffix}.txt", final_results, header=result_header)
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, F1: {final_results[1]:.4f}, ACC: {final_results[2]:.4f}")
 
   

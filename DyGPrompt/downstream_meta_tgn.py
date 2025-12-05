@@ -389,7 +389,8 @@ folder_path = "./"
 # np.savetxt(f"{folder_path}/{NAME}_auc.txt", total_auc, fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_f1.txt", total_f1, fmt='%s')
 
-save_results_to_txt(folder_path, f"{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100], header=f"Task: Node Classification (TGN Baseline) | Dataset: {args.data} | Struc: {args.struc_prompt} | Time: False | Node: False | Meta: 0 | Columns: AUC")
+struc_suffix = "_struc" if args.struc_prompt else "_no_struc"
+save_results_to_txt(folder_path, f"{NAME}_total_mean_auc_f{struc_suffix}.txt", [sum(total_auc)/100], header=f"Task: Node Classification (TGN Baseline) | Dataset: {args.data} | Struc: {args.struc_prompt} | Time: False | Node: False | Meta: 0 | Columns: AUC")
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_ff1.txt",[sum(total_f1)/100] ,fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_acc_f.txt",[sum(total_acc)/100] ,fmt='%s')
 

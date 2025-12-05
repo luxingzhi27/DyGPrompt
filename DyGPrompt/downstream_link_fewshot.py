@@ -423,6 +423,7 @@ final_results = np.array([
 result_header = f"Task: Link Prediction (DyGPrompt Few-Shot) | Dataset: {args.data} | " \
                 f"Struc: {args.struc_prompt} | Time: True | Node: True | Meta: {TAG} | " \
                 f"Columns: AUC, AP, NN_AUC, NN_AP"
-save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results.txt", final_results, header=result_header)
+struc_suffix = "_struc" if args.struc_prompt else "_no_struc"
+save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results{struc_suffix}.txt", final_results, header=result_header)
 
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")
