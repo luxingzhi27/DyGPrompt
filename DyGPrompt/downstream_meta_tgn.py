@@ -238,6 +238,7 @@ for task in task_pbar:
   max_idx = max(full_data.unique_nodes)
 
   train_ngh_finder = get_neighbor_finder(train_data, uniform=UNIFORM, max_node_idx=max_idx)
+  full_ngh_finder = get_neighbor_finder(full_data, uniform=UNIFORM, max_node_idx=max_idx)
 
   # Set device
   device_string = 'cuda:{}'.format(GPU) if torch.cuda.is_available() else 'cpu'
@@ -307,7 +308,7 @@ for task in task_pbar:
       sources_batch = train_data.sources[indices]
       destinations_batch = train_data.destinations[indices]
       timestamps_batch = train_data.timestamps[indices]
-      edge_idxs_batch = full_data.edge_idxs[indices]
+      edge_idxs_batch = train_data.edge_idxs[indices]
       labels_batch = train_data.labels[indices]
 
       size = len(sources_batch)
@@ -331,7 +332,7 @@ for task in task_pbar:
       #
       train_losses.append(loss)
 
-      val_auc, val_acc, val_f1 = eval_node_classification(tgn, decoder, val_data, full_data.edge_idxs,VAL_SHOT_NUM,
+      val_auc, val_acc, val_f1 = eval_node_classification(tgn, decoder, val_data, val_data.edge_idxs,VAL_SHOT_NUM,
                                         n_neighbors=NUM_NEIGHBORS)
       val_aucs.append(val_auc)
       
@@ -343,12 +344,13 @@ for task in task_pbar:
       #   "epoch_times": [0.0],
       #   "new_nodes_val_aps": [],
       # }, open(results_path, "wb"))
-      torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
-    decoder.load_state_dict(torch.load(get_checkpoint_path(args.n_epoch-1)))
+      # torch.save(decoder.state_dict(), get_checkpoint_path(epoch))
+    # decoder.load_state_dict(torch.load(get_checkpoint_path(args.n_epoch-1)))
   
     decoder.eval()
     TEST_SHOT_NUM = 0
-    test_auc,test_acc,test_f1 = eval_node_classification(tgn, decoder, test_data, full_data.edge_idxs,TEST_SHOT_NUM,
+    tgn.set_neighbor_finder(full_ngh_finder)
+    test_auc,test_acc,test_f1 = eval_node_classification(tgn, decoder, test_data, test_data.edge_idxs,TEST_SHOT_NUM,
                                           n_neighbors=NUM_NEIGHBORS)
     
     # pickle.dump({
