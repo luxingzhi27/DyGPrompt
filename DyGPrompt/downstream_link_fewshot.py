@@ -72,6 +72,7 @@ parser.add_argument('--memory_updater', type=str, default="gru", choices=[
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
 parser.add_argument('--tag', type=int, default=1, help='')
+parser.add_argument('--struc_prompt', action='store_true', help='Whether to use structure prompt')
 try:
   args = parser.parse_args()
 except:
@@ -107,6 +108,17 @@ get_checkpoint_path = lambda \
 
 ### set up logger
 logger = setup_logger(f"{args.prefix}_{args.data}_fewshot")
+config_info = f"\n{'='*30}\n" \
+              f"Experiment Configuration:\n" \
+              f"Task: Link Prediction (DyGPrompt Few-Shot)\n" \
+              f"Dataset: {args.data}\n" \
+              f"Structure Prompt: {args.struc_prompt}\n" \
+              f"Time Prompt: True\n" \
+              f"Node Prompt: True (Implicit)\n" \
+              f"Meta Net (Condition Networks): Enabled (Tag={TAG})\n" \
+              f"Fine-tuning Type: Prompt Tuning (Affinity + Prompts)\n" \
+              f"{'='*30}"
+logger.info(config_info)
 logger.info(args)
 
 ### Extract data for training, validation and testing
@@ -168,7 +180,7 @@ for task in task_pbar:
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
                 # struc_prompt_tag=False to align with paper's parameter efficiency claim
-                dyrep=args.dyrep,struc_prompt_tag=False, time_prompt_tag=True, meta_tag=True, tag=3)
+                dyrep=args.dyrep,struc_prompt_tag=args.struc_prompt, time_prompt_tag=True, meta_tag=True, tag=3)
     criterion = torch.nn.BCELoss()
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
     tgn.load_state_dict(torch.load(model_path),strict=False)
@@ -408,7 +420,10 @@ final_results = np.array([
     sum(test_nn_aucs)/100,
     sum(test_nn_aps)/100
 ])
-save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results.txt", final_results)
+result_header = f"Task: Link Prediction (DyGPrompt Few-Shot) | Dataset: {args.data} | " \
+                f"Struc: {args.struc_prompt} | Time: True | Node: True | Meta: {TAG} | " \
+                f"Columns: AUC, AP, NN_AUC, NN_AP"
+struc_suffix = "_struc" if args.struc_prompt else "_no_struc"
+save_results_to_txt("results", f"{args.prefix}_{args.data}_fewshot_results{struc_suffix}.txt", final_results, header=result_header)
 
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, AP: {final_results[1]:.4f}, NN AUC: {final_results[2]:.4f}, NN AP: {final_results[3]:.4f}")
-
