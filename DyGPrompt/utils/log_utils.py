@@ -43,13 +43,13 @@ def get_pbar(iterable, desc, total=None, leave=False):
     """
     return tqdm(iterable, desc=desc, total=total, unit="step", leave=leave, ncols=100)
 
-def save_results_to_txt(folder_path, file_name, data, fmt='%.6f'):
+def save_results_to_txt(folder_path, file_name, data, fmt='%.6f', header=''):
     """
     Saves data to a txt file.
     """
     Path(folder_path).mkdir(parents=True, exist_ok=True)
     file_path = f"{folder_path}/{file_name}"
-    np.savetxt(file_path, data, fmt=fmt)
+    np.savetxt(file_path, data, fmt=fmt, header=header)
 
 def log_epoch_stats(logger, epoch, epoch_time, loss, val_auc, val_ap, nn_val_auc=None, nn_val_ap=None):
     """

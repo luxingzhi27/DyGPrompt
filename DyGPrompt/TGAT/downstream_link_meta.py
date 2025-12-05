@@ -153,7 +153,7 @@ random.seed(2020)
 total_node_set = set(np.unique(np.hstack([g_df.u.values, g_df.i.values])))
 num_total_unique_nodes = len(total_node_set)
 
-mask_node_set = set(random.sample(set(src_l[ts_l > val_time]).union(set(dst_l[ts_l > val_time])), int(0.1 * num_total_unique_nodes)))
+mask_node_set = set(random.sample(sorted(set(src_l[ts_l > val_time]).union(set(dst_l[ts_l > val_time]))), int(0.1 * num_total_unique_nodes)))
 
 mask_src_flag = g_df.u.map(lambda x: x in mask_node_set).values
 mask_dst_flag = g_df.i.map(lambda x: x in mask_node_set).values
@@ -312,6 +312,7 @@ for task in task_pbar:
             # get training results
         
         loss = criterion(pos_prob, pos_label) + criterion(neg_prob, neg_label)
+        # loss = loss + criterion(neg_prob, neg_label)
         
         loss.backward()
         meta_prompt_optimizer.step()
@@ -321,6 +322,7 @@ for task in task_pbar:
         optimizer.step()
         prompt_optimizer.step()
         
+        # f1.append(f1_score(true_label, pred_label))
         m_loss.append(loss.item())
 
         val_acc, val_ap, val_f1, val_auc = eval_one_epoch('val', tgan, val_rand_sampler, val_src_l, val_dst_l, val_ts_l, val_label_l)
