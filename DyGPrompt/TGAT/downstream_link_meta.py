@@ -321,6 +321,7 @@ for task in task_pbar:
         # structure_prompt_optimizer.step()
         optimizer.step()
         prompt_optimizer.step()
+        
         # f1.append(f1_score(true_label, pred_label))
         m_loss.append(loss.item())
 

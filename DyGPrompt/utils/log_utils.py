@@ -49,7 +49,12 @@ def save_results_to_txt(folder_path, file_name, data, fmt='%.6f', header=''):
     """
     Path(folder_path).mkdir(parents=True, exist_ok=True)
     file_path = f"{folder_path}/{file_name}"
-    np.savetxt(file_path, data, fmt=fmt, header=header)
+    
+    # Use explicit file opening to handle header safely
+    with open(file_path, 'w') as f:
+        if header:
+            f.write(f"# {header}\n")
+        np.savetxt(f, data, fmt=fmt)
 
 def log_epoch_stats(logger, epoch, epoch_time, loss, val_auc, val_ap, nn_val_auc=None, nn_val_ap=None):
     """
