@@ -85,6 +85,7 @@ parser.add_argument('--memory_updater', type=str, default="gru", choices=[
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
 parser.add_argument('--tag', type=int, default=3, help='')
+parser.add_argument('--struc_prompt', action='store_true', help='Whether to use structure prompt')
 try:
   args = parser.parse_args()
 except:
@@ -121,6 +122,17 @@ get_checkpoint_path = lambda \
 
 ### set up logger
 logger = setup_logger(f"{args.prefix}_{args.data}_node_class")
+config_info = f"\n{'='*30}\n" \
+              f"Experiment Configuration:\n" \
+              f"Task: Node Classification (DyGPrompt Meta)\n" \
+              f"Dataset: {args.data}\n" \
+              f"Structure Prompt: {args.struc_prompt}\n" \
+              f"Time Prompt: True\n" \
+              f"Node Prompt: True (Explicit)\n" \
+              f"Meta Net (Condition Networks): Enabled (Tag={TAG})\n" \
+              f"Fine-tuning Type: Prompt Tuning (Decoder + Prompts)\n" \
+              f"{'='*30}"
+logger.info(config_info)
 logger.info(args)
 
 # full_data, node_features, edge_features, train_data, val_data, test_data = \
@@ -274,7 +286,7 @@ for task in task_pbar:
                 mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
-                dyrep=args.dyrep,struc_prompt_tag=True,time_prompt_tag=True,meta_tag=True,tag=TAG)
+                dyrep=args.dyrep,struc_prompt_tag=args.struc_prompt,time_prompt_tag=True,meta_tag=True,tag=TAG)
     tgn = tgn.to(device)
     prompt = node_prompt_layer(node_features.shape[1])
 
@@ -444,7 +456,10 @@ final_results = np.array([
     sum(total_f1)/100,
     sum(total_acc)/100
 ])
-save_results_to_txt("results", f"{args.prefix}_{args.data}_node_class_results.txt", final_results)
+result_header = f"Task: Node Classification (DyGPrompt Meta) | Dataset: {args.data} | " \
+                f"Struc: {args.struc_prompt} | Time: True | Node: True | Meta: {TAG} | " \
+                f"Columns: AUC, F1, ACC"
+save_results_to_txt("results", f"{args.prefix}_{args.data}_node_class_results.txt", final_results, header=result_header)
 logger.info(f"Final Results - AUC: {final_results[0]:.4f}, F1: {final_results[1]:.4f}, ACC: {final_results[2]:.4f}")
 
   

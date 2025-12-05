@@ -84,6 +84,7 @@ parser.add_argument('--memory_updater', type=str, default="gru", choices=[
 parser.add_argument('--dyrep', action='store_true',
                     help='Whether to run the dyrep model')
 parser.add_argument('--tag', type=int, default=3, help='')
+parser.add_argument('--struc_prompt', action='store_true', help='Whether to use structure prompt')
 try:
   args = parser.parse_args()
 except:
@@ -120,6 +121,17 @@ get_checkpoint_path = lambda \
 
 ### set up logger
 logger = setup_logger(f'log/{time.time()}.log')
+config_info = f"\n{'='*30}\n" \
+              f"Experiment Configuration:\n" \
+              f"Task: Node Classification (TGN Baseline)\n" \
+              f"Dataset: {args.data}\n" \
+              f"Structure Prompt: {args.struc_prompt}\n" \
+              f"Time Prompt: False\n" \
+              f"Node Prompt: False\n" \
+              f"Meta Net (Condition Networks): 0 (Disabled)\n" \
+              f"Fine-tuning Type: Linear Probing (Decoder Only)\n" \
+              f"{'='*30}"
+logger.info(config_info)
 logger.info(args)
 
 # full_data, node_features, edge_features, train_data, val_data, test_data = \
@@ -271,7 +283,7 @@ for task in task_pbar:
                 mean_time_shift_dst=mean_time_shift_dst, std_time_shift_dst=std_time_shift_dst,
                 use_destination_embedding_in_message=args.use_destination_embedding_in_message,
                 use_source_embedding_in_message=args.use_source_embedding_in_message,
-                dyrep=args.dyrep,struc_prompt_tag=False,time_prompt_tag=False,meta_tag=False,tag=TAG)
+                dyrep=args.dyrep,struc_prompt_tag=args.struc_prompt,time_prompt_tag=False,meta_tag=False,tag=TAG)
     tgn = tgn.to(device)
 
     model_path = f'./saved_models/{args.prefix}-{DATA}.pth'
@@ -377,7 +389,7 @@ folder_path = "./"
 # np.savetxt(f"{folder_path}/{NAME}_auc.txt", total_auc, fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_f1.txt", total_f1, fmt='%s')
 
-save_results_to_txt(folder_path, f"{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100])
+save_results_to_txt(folder_path, f"{NAME}_total_mean_auc_f.txt", [sum(total_auc)/100], header=f"Task: Node Classification (TGN Baseline) | Dataset: {args.data} | Struc: {args.struc_prompt} | Time: False | Node: False | Meta: 0 | Columns: AUC")
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_ff1.txt",[sum(total_f1)/100] ,fmt='%s')
 # np.savetxt(f"{folder_path}/{NAME}_total_mean_acc_f.txt",[sum(total_acc)/100] ,fmt='%s')
 
