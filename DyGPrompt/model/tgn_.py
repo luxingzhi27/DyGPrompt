@@ -41,15 +41,12 @@ class TGN(torch.nn.Module):
     else:
       self.struc_prompt = None
     if self.meta_tag:
-      self.delta_t_projector = nn.Linear(1, input_dim)
-      #定义ncn
-      self.ncn = ContextMetaNet(input_dim*2,input_dim,alpha=2)
-
-      #定义tcn
-      mem_dim = memory_dimension if use_memory else input_dim
-      self.tcn = ContextMetaNet(input_dim + mem_dim, input_dim, alpha=2)
-
-      self.meta_net = nn.ModuleList([self.ncn,self.tcn,self.delta_t_projector])
+      self.meta_net = nn.Sequential(OrderedDict([
+              ("linear1", nn.Linear(input_dim, input_dim //2 )),
+              ("relu", nn.ReLU(inplace=True)),
+              ("linear2", nn.Linear(input_dim // 2, input_dim))
+          ]))
+      
 
     else:
       self.meta_net = None
